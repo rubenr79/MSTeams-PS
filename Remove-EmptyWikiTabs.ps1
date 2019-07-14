@@ -52,4 +52,3 @@ foreach($team in $teams) {
     }
 }
 
-$channels | Format-Table
