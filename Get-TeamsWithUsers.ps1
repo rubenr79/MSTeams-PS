@@ -11,7 +11,8 @@ function Get-TeamOwners {
     
     $url = "https://graph.microsoft.com/v1.0/groups/" + $teamID + "/owners"
     $response = Invoke-RestMethod -Uri $url -Headers @{Authorization = "Bearer $token"}
-    $response.value
+    
+    return $response.value | ToArray
 }
 
 function Get-TeamMembers {
@@ -19,7 +20,24 @@ function Get-TeamMembers {
     
     $url = "https://graph.microsoft.com/v1.0/groups/" + $teamID + "/members"
     $response = Invoke-RestMethod -Uri $url -Headers @{Authorization = "Bearer $token"}
-    $response.value
+    
+    return $response.value | ToArray
+}
+
+function ToArray
+{
+  begin
+  {
+    $output = @();
+  }
+  process
+  {
+    $output += $_;
+  }
+  end
+  {
+    return ,$output;
+  }
 }
 
 $scopes = 'Group.Read.All'
@@ -33,16 +51,17 @@ $result = @()
 
 foreach($team in $teams) {
     $owners = Get-TeamOwners $token $team.id
+    $members = Get-TeamMembers $token $team.id
+    $guests = $members | where {$_.userPrincipalName -like '*#EXT#*'}
 
-    if ($owners -eq $null) {
-        $members = Get-TeamMembers $token $team.id
+    $teamToAdd = "" | Select-Object "TeamId","TeamName","Owners","Members","Guests"
+    $teamToAdd.TeamId = $team.id
+    $teamToAdd.TeamName = $team.displayName
+    $teamToAdd.Owners = $owners.count
+    $teamToAdd.Members = $members.count
+    $teamToAdd.Guests = $guests.count
 
-        $teamToAdd = "" | Select-Object "TeamId","TeamName"
-        $teamToAdd.TeamId = $team.id
-        $teamToAdd.TeamName = $team.displayName
-
-        $result += $teamToAdd
-    }
+    $result += $teamToAdd
 }
 
-$result
+$result | Format-Table
